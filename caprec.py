@@ -5,6 +5,10 @@ import math
 import os, time
 import cPickle as pickle 
 
+TRAIN_DIR = "data/train/"
+TEST_DIR = "data/test/"
+CHAR_DIR = "data/chars/"
+
 feat_dict = dict()
 proc_list = []
 
@@ -65,7 +69,7 @@ def crop_char(img, WIN_SIZE = 9):
 
 	# No more seraration possible
 	if (logic_arr == [1 for ii in range(len(logic_arr))]):
-		yield np.zeros(shape(img_i, img_j))
+		yield np.zeros(shape=(img_i, img_j))
 		return
 
 	# Window averaging
@@ -101,14 +105,14 @@ def crop_char(img, WIN_SIZE = 9):
 		if (char_len):
 			if (char_len > char_maxlen):
 				print("Size exceeded " + str(char_len))
-				misc.imshow(char_img)
+				# misc.imshow(char_img)
 				char_idx += chars_on(char_len, 0)
 				for subchar in crop_char(char_img, get_odd(WIN_SIZE / 2)):
 					yield subchar
 
 			else:
 				char_idx += 1
-				misc.imshow(char_img)
+				# misc.imshow(char_img)
 
 				print("yielding " + str(char_idx))
 				yield char_img
@@ -130,8 +134,6 @@ def get_attr(char_img):
 	img_j = char_img.shape[1]
 
 	# print(char_img.shape)
-	
-
 	perc_arr = []
 
 	for h in range(H_PARTS):
@@ -158,8 +160,6 @@ def get_attr(char_img):
 	return (img_j, perc_arr)
 
 def clean_img(raw_img):
-
-
 	def to_white(mat, size):
 		flag = True
 		for ii in range(size):
@@ -172,9 +172,6 @@ def clean_img(raw_img):
 				break
 
 		return flag
-
-
-
 
 	def outerbox(i, j, size):
 		if (i == 0) or (j == 0):
@@ -189,9 +186,7 @@ def clean_img(raw_img):
 	WFILTER = w1 > 200
 	
 	w1[WFILTER] = PIXEL_WHITE
-
 	# misc.imshow(w1)
-
 	FLT_SIZE = 7
 	img_i = w1.shape[0]
 	img_j = w1.shape[1]
@@ -216,12 +211,11 @@ def train():
 
 	global feat_dict, proc_list
 
-	TRAIN_LIM = 20
-	TRAIN_DIR = "/home/pranx/Downloads/train/"
+	TRAIN_LIM = 100
 
 	RES_FILES = ["proc.dat", "learnt.dat"]
-	PLIST_FILE = TRAIN_DIR + "proc.dat"
-	LEARNT_FILE = TRAIN_DIR + "learnt.dat"
+	PLIST_FILE = "proc.dat"
+	LEARNT_FILE = "learnt.dat"
 
 	if os.path.exists(LEARNT_FILE):
 		with open(LEARNT_FILE, "rb") as pfile:
@@ -267,7 +261,11 @@ def train():
 				feat_dict[this_char] = (char_j, flist)
 				# print(feat_dict[this_char])
 				# os.system("pause")
-				train_chars += 1
+				train_char += 1
+				misc.imsave(CHAR_DIR
+							+this_char
+							+"_0.jpg", 
+							char_img)
 
 			else:
 				oj, oflist = feat_dict[this_char]
@@ -275,6 +273,12 @@ def train():
 				char_j = int((char_j + oj)/2)
 
 				feat_dict[this_char] = (char_j, flist)
+				misc.imsave(CHAR_DIR
+							+this_char
+							+"_"+str(flist[0])
+							+".jpg", 
+							char_img)
+
 
 			print(feat_dict[this_char])
 
@@ -300,9 +304,7 @@ def train():
 def test():
 	global feat_dict
 
-	TRAIN_DIR = "/home/pranx/Downloads/train/"
-	TEST_DIR = "/home/pranx/Downloads/test/"
-	LEARNT_FILE = TRAIN_DIR + "learnt.dat"
+	LEARNT_FILE = "learnt.dat"
 
 	if os.path.exists(LEARNT_FILE):
 		with open(LEARNT_FILE, "rb") as pfile:
@@ -313,32 +315,35 @@ def test():
 
 	cap_ans = ''
 
-	TEST_IMG = TEST_DIR + "t1.png"
+	for file in os.listdir(TEST_DIR):
 
-	t1 = misc.imread(TEST_IMG, True)
-	t1 = clean_img(t1)
+		TEST_IMG = file
 
-	for char_img in crop_char(t1):
-		char_j, den_list = get_attr(char_img)
-		min_err = 10000
-		idx = ''
+		t1 = misc.imread(TEST_DIR + TEST_IMG, True)
+		t1 = clean_img(t1)
+		cap_ans = ""
 
-		for timg in feat_dict:
-			tj, tdlist = feat_dict[timg]
+		for char_img in crop_char(t1):
+			char_j, den_list = get_attr(char_img)
+			min_err = 10000
+			idx = ''
 
-			if (abs(char_j - tj) > 5):
-				continue 
+			for timg in feat_dict:
+				tj, tdlist = feat_dict[timg]
 
-			this_err = sum([(den_list[ii] - tdlist[ii])**2 for \
-					ii in range(H_PARTS * V_PARTS)])
+				if (abs(char_j - tj) > 5):
+					continue 
 
-			if (this_err < min_err):
-				min_err = this_err
-				idx = timg
+				this_err = sum([(den_list[ii] - tdlist[ii])**2 for \
+						ii in range(H_PARTS * V_PARTS)])
 
-		cap_ans += idx
+				if (this_err < min_err):
+					min_err = this_err
+					idx = timg
 
-	print("Text in Captcha is: " + cap_ans)
+			cap_ans += idx
+
+		print("Text in Captcha is: " + cap_ans)
 
 
 
